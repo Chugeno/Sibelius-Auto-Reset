@@ -75,12 +75,7 @@ sudo rm -Rf "$HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3" 2
 msg "Reset completado!"
 echo "$(date): Reset de Sibelius Ultimate completado exitosamente" >> "$LOG_FILE"
 
-# Notificación usando AppleScript
-osascript << EOT
-tell application "System Events"
-    display notification "Sibelius Ultimate ha sido reseteado automáticamente" with title "Reset Sibelius" sound name "Glass"
-end tell
-EOT
+# Reset completado sin notificaciones
 
 EOF
 
@@ -175,9 +170,27 @@ echo "  • Script principal: $RESET_SCRIPT"
 echo "  • Logs en: $REAL_HOME/.local/sibelius_reset.log"
 echo "  • Desinstalar con: $UNINSTALL_SCRIPT"
 echo
+
+# Preguntar si quiere ejecutar el reset ahora
+echo
+msg_info "¿Quieres ejecutar el reset de Sibelius ahora? (y/n)"
+read -p "Respuesta: " -n 1 -r
+echo
+
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    msg_info "Ejecutando reset de Sibelius..."
+    # Ejecutar como el usuario real, no como root
+    sudo -u $REAL_USER "$RESET_SCRIPT"
+    msg_success "Reset ejecutado exitosamente!"
+else
+    msg_info "Reset no ejecutado. Puedes ejecutarlo manualmente cuando quieras:"
+    echo "  $RESET_SCRIPT"
+fi
+
+echo
 msg_info "Comandos útiles:"
 echo "  • Ver estado: launchctl list | grep sibelius"
 echo "  • Ejecutar manualmente: $RESET_SCRIPT"
 echo "  • Ver logs: tail -f $REAL_HOME/.local/sibelius_reset.log"
 echo
-msg_warning "NOTA: El primer reset será en 29 días. Si quieres probar ahora, ejecuta manualmente el script."
+msg_warning "NOTA: El próximo reset automático será en 29 días."
