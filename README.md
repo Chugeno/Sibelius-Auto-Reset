@@ -11,10 +11,14 @@ Automatiza el reset de Sibelius Ultimate en macOS cada 29 días sin intervenció
 - 🗑️ **Desinstalador** incluido
 
 ## Instalación
-**Ejecutar en la terminal:**
-   ```bash
-   curl -s https://raw.githubusercontent.com/Chugeno/Sibelius-Auto-Reset/main/sibelius_installer.sh | bash
-   ```
+1. **Descargar el script:**
+```
+   curl -O https://raw.githubusercontent.com/Chugeno/Sibelius-Auto-Reset/main/sibelius_installer.sh
+```
+2. **Ejecutar:**
+```
+   sudo bash sibelius_installer.sh
+```
 
 ¡Listo! El reset se ejecutará automáticamente cada 29 días.
 
