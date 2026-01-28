@@ -1,7 +1,7 @@
 #!/bin/bash
 # Instalador para reset automático de Sibelius Ultimate cada 29 días
 # Requiere ejecutarse con sudo inicialmente para configurar sudoers
-# Versión actualizada: Usa StartCalendarInterval + contador para fiabilidad
+# Versión 2.0: Corregido manejo de paths con espacios y validaciones
 
 # Colores para mensajes
 RED='\033[0;31m'
@@ -30,93 +30,153 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# Verificar que Sibelius está instalado
+if [[ ! -d "/Applications/Sibelius.app" ]]; then
+    msg_warning "Sibelius.app no encontrado en /Applications"
+    read -p "¿Continuar de todos modos? (y/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        msg_info "Instalación cancelada"
+        exit 0
+    fi
+fi
+
 # Obtener el usuario real (no root)
-REAL_USER=$(logname)
+# SUDO_USER es más confiable que logname en macOS
+if [[ -n "$SUDO_USER" ]]; then
+    REAL_USER="$SUDO_USER"
+else
+    REAL_USER=$(logname 2>/dev/null || whoami)
+fi
 REAL_HOME=$(eval echo ~$REAL_USER)
+
+# Validar que no sea root
+if [[ "$REAL_USER" == "root" ]]; then
+    msg_error "No se pudo detectar el usuario real. No ejecutes como 'sudo su' sino directamente 'sudo ./script.sh'"
+    exit 1
+fi
 msg_info "Configurando reset automático de Sibelius Ultimate para usuario: $REAL_USER"
 
 # 1. Crear el directorio para scripts si no existe
 SCRIPTS_DIR="$REAL_HOME/.local/bin"
 mkdir -p "$SCRIPTS_DIR"
-chown $REAL_USER:staff "$SCRIPTS_DIR"
+chown "$REAL_USER:staff" "$SCRIPTS_DIR"
 
-# 2. Crear el script de reset (con contador de 29 días)
+# 2. Crear script auxiliar para borrado (evita problemas de sudoers con espacios)
+HELPER_SCRIPT="$SCRIPTS_DIR/sibelius_clean.sh"
+cat > "$HELPER_SCRIPT" << 'EOF'
+#!/bin/bash
+# Script auxiliar de limpieza - ejecutado con sudo
+# NO MODIFICAR - Generado automáticamente
+
+rm -Rf /Applications/APi1 2>/dev/null
+rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/ACr2" 2>/dev/null
+rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/Plugins_v2" 2>/dev/null
+rm -Rf "$HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3" 2>/dev/null
+
+# Verificar que al menos uno existía y fue borrado
+CLEANED=0
+[[ ! -d /Applications/APi1 ]] && CLEANED=1
+[[ ! -d "/Library/Application Support/Avid/Sibelius/_manuscript/ACr2" ]] && CLEANED=1
+
+exit 0
+EOF
+chmod +x "$HELPER_SCRIPT"
+chown "$REAL_USER:staff" "$HELPER_SCRIPT"
+msg_success "Script auxiliar creado en: $HELPER_SCRIPT"
+
+# 3. Crear el script de reset principal (con contador de 29 días)
 RESET_SCRIPT="$SCRIPTS_DIR/sibelius_reset.sh"
-cat > "$RESET_SCRIPT" << 'EOF'
+cat > "$RESET_SCRIPT" << EOF
 #!/bin/bash
 # Script para reset de Sibelius Ultimate (solo cada 29 días)
-# Creado automáticamente por el instalador
+# Creado automáticamente por el instalador v2.0
 
 function msg {
-    printf "\e[1;32m>\e[m %s\n" "$1"
+    printf "\e[1;32m>\e[m %s\n" "\$1"
 }
 function msg2 {
-    printf "\e[1;34m>\e[m %s\n" "$1"
+    printf "\e[1;34m>\e[m %s\n" "\$1"
+}
+function msg_err {
+    printf "\e[1;31m>\e[m %s\n" "\$1"
 }
 
 # Log del proceso
-LOG_FILE="$HOME/.local/sibelius_reset.log"
-echo "$(date): Iniciando chequeo de reset de Sibelius Ultimate" >> "$LOG_FILE"
+LOG_FILE="\$HOME/.local/sibelius_reset.log"
+echo "\$(date): Iniciando chequeo de reset de Sibelius Ultimate" >> "\$LOG_FILE"
 
 # Contador de 29 días
-LAST_RUN_FILE="$HOME/.local/.sibelius_last_run"
+LAST_RUN_FILE="\$HOME/.local/.sibelius_last_run"
 DO_RESET=false
 
-if [[ ! -f "$LAST_RUN_FILE" ]]; then
+if [[ ! -f "\$LAST_RUN_FILE" ]]; then
     # Primer run: forzar reset y guardar fecha actual
-    date +%s > "$LAST_RUN_FILE"
+    date +%s > "\$LAST_RUN_FILE"
     DO_RESET=true
     msg2 "Primer ejecución: forzando reset inicial"
-    echo "$(date): Primer run, forzando reset" >> "$LOG_FILE"
+    echo "\$(date): Primer run, forzando reset" >> "\$LOG_FILE"
 else
-    LAST_RUN=$(cat "$LAST_RUN_FILE")
-    NOW=$(date +%s)
-    DIFF=$(( (NOW - LAST_RUN) / 86400 ))  # Días transcurridos
-    if [[ $DIFF -ge 29 ]]; then
+    LAST_RUN=\$(cat "\$LAST_RUN_FILE")
+    NOW=\$(date +%s)
+    DIFF=\$(( (NOW - LAST_RUN) / 86400 ))  # Días transcurridos
+    if [[ \$DIFF -ge 29 ]]; then
         DO_RESET=true
-        date +%s > "$LAST_RUN_FILE"  # Actualizar fecha
-        msg2 "Han pasado $DIFF días: ejecutando reset"
-        echo "$(date): Reset ejecutado ($DIFF días desde último)" >> "$LOG_FILE"
+        date +%s > "\$LAST_RUN_FILE"  # Actualizar fecha
+        msg2 "Han pasado \$DIFF días: ejecutando reset"
+        echo "\$(date): Reset ejecutado (\$DIFF días desde último)" >> "\$LOG_FILE"
     else
         DO_RESET=false
-        msg2 "Solo han pasado $DIFF días, no se resetea aún (próximo en $((29 - DIFF)) días)"
-        echo "$(date): Solo pasaron $DIFF días, no se resetea aún" >> "$LOG_FILE"
+        msg2 "Solo han pasado \$DIFF días, no se resetea aún (próximo en \$((29 - DIFF)) días)"
+        echo "\$(date): Solo pasaron \$DIFF días, no se resetea aún" >> "\$LOG_FILE"
         exit 0
     fi
 fi
 
-if [[ "$DO_RESET" == true ]]; then
+if [[ "\$DO_RESET" == true ]]; then
     msg "Reset Sibelius Ultimate iniciado..."
-    # Eliminar archivos (sin sudo gracias a sudoers)
-    sudo rm -Rf /Applications/APi1 2>/dev/null || true
-    sudo rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/ACr2" 2>/dev/null || true
-    sudo rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/Plugins_v2" 2>/dev/null || true
-    sudo rm -Rf "$HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3" 2>/dev/null || true
-    msg "Reset completado!"
-    echo "$(date): Reset de Sibelius Ultimate completado exitosamente" >> "$LOG_FILE"
+    
+    # Ejecutar script de limpieza con sudo
+    if sudo "$HELPER_SCRIPT"; then
+        msg "Reset completado!"
+        echo "\$(date): Reset de Sibelius Ultimate completado exitosamente" >> "\$LOG_FILE"
+    else
+        msg_err "Error durante el reset"
+        echo "\$(date): ERROR - Reset falló" >> "\$LOG_FILE"
+        exit 1
+    fi
 fi
 EOF
 
 # Hacer ejecutable el script
 chmod +x "$RESET_SCRIPT"
-chown $REAL_USER:staff "$RESET_SCRIPT"
+chown "$REAL_USER:staff" "$RESET_SCRIPT"
 msg_success "Script de reset creado en: $RESET_SCRIPT"
 
-# 3. Configurar sudoers (con comillas y paths completos)
+# 4. Configurar sudoers (apuntando al script auxiliar, sin paths con espacios)
 SUDOERS_FILE="/etc/sudoers.d/sibelius_reset"
 cat > "$SUDOERS_FILE" << EOF
-# Permitir al usuario ejecutar comandos específicos sin contraseña para reset de Sibelius
-$REAL_USER ALL=(ALL) NOPASSWD: /bin/rm -Rf /Applications/APi1
-$REAL_USER ALL=(ALL) NOPASSWD: /bin/rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/ACr2"
-$REAL_USER ALL=(ALL) NOPASSWD: /bin/rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/Plugins_v2"
-$REAL_USER ALL=(ALL) NOPASSWD: /bin/rm -Rf "$REAL_HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3"
+# Permitir al usuario ejecutar el script de limpieza sin contraseña
+$REAL_USER ALL=(ALL) NOPASSWD: $HELPER_SCRIPT
 EOF
 chmod 440 "$SUDOERS_FILE"
-msg_success "Configuración sudoers creada en: $SUDOERS_FILE"
 
-# 4. Crear el plist para launchd (diario a las 3:00 AM + RunAtLoad)
+# Validar sintaxis de sudoers
+if visudo -cf "$SUDOERS_FILE" > /dev/null 2>&1; then
+    msg_success "Configuración sudoers creada y validada en: $SUDOERS_FILE"
+else
+    msg_error "Error en la sintaxis de sudoers - revirtiendo"
+    rm -f "$SUDOERS_FILE"
+    exit 1
+fi
+
+# 5. Crear el plist para launchd (diario a las 3:00 AM + RunAtLoad)
 PLIST_FILE="$REAL_HOME/Library/LaunchAgents/com.sibelius.reset.plist"
 mkdir -p "$REAL_HOME/Library/LaunchAgents"
+
+# Descargar tarea existente si existe
+sudo -u "$REAL_USER" launchctl unload "$PLIST_FILE" 2>/dev/null || true
+
 cat > "$PLIST_FILE" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -144,43 +204,48 @@ cat > "$PLIST_FILE" << EOF
 </dict>
 </plist>
 EOF
-chown $REAL_USER:staff "$PLIST_FILE"
+chown "$REAL_USER:staff" "$PLIST_FILE"
 msg_success "Tarea programada creada en: $PLIST_FILE (diaria a las 3:00 AM)"
 
-# 5. Cargar la tarea en launchd
-sudo -u $REAL_USER launchctl load "$PLIST_FILE"
+# 6. Cargar la tarea en launchd
+sudo -u "$REAL_USER" launchctl load "$PLIST_FILE"
 msg_success "Tarea cargada en launchd"
 
-# 6. Crear script de desinstalación
+# 7. Crear script de desinstalación
 UNINSTALL_SCRIPT="$SCRIPTS_DIR/sibelius_uninstall.sh"
 cat > "$UNINSTALL_SCRIPT" << EOF
 #!/bin/bash
 # Script de desinstalación para reset automático de Sibelius
 echo "Desinstalando reset automático de Sibelius..."
+
 # Descargar tarea de launchd
 launchctl unload "$PLIST_FILE" 2>/dev/null || true
+
 # Eliminar archivos
 rm -f "$PLIST_FILE"
 rm -f "$RESET_SCRIPT"
-rm -f "$HOME/.local/.sibelius_last_run" 2>/dev/null || true
+rm -f "$HELPER_SCRIPT"
+rm -f "\$HOME/.local/.sibelius_last_run" 2>/dev/null || true
 sudo rm -f "$SUDOERS_FILE"
 rm -f "$UNINSTALL_SCRIPT"
+
 echo "Desinstalación completada"
 EOF
 chmod +x "$UNINSTALL_SCRIPT"
-chown $REAL_USER:staff "$UNINSTALL_SCRIPT"
+chown "$REAL_USER:staff" "$UNINSTALL_SCRIPT"
 msg_success "Script de desinstalación creado en: $UNINSTALL_SCRIPT"
 
-# 7. Crear directorio de logs
+# 8. Crear directorio de logs
 mkdir -p "$REAL_HOME/.local"
-chown $REAL_USER:staff "$REAL_HOME/.local"
+chown "$REAL_USER:staff" "$REAL_HOME/.local"
 
 echo
-msg_success "INSTALACIÓN COMPLETADA"
+msg_success "INSTALACIÓN COMPLETADA (v2.0)"
 echo
 msg_info "Configuración:"
 echo " • Reset automático cada 29 días (chequeo diario a las 3:00 AM)"
 echo " • Script principal: $RESET_SCRIPT"
+echo " • Script de limpieza: $HELPER_SCRIPT"
 echo " • Logs en: $REAL_HOME/.local/sibelius_reset.log"
 echo " • Desinstalar con: $UNINSTALL_SCRIPT"
 echo
@@ -189,7 +254,7 @@ read -p "Respuesta: " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     msg_info "Ejecutando reset de Sibelius..."
-    sudo -u $REAL_USER "$RESET_SCRIPT"
+    sudo -u "$REAL_USER" "$RESET_SCRIPT"
     msg_success "Reset ejecutado exitosamente!"
 else
     msg_info "Reset no ejecutado. Puedes ejecutarlo manualmente cuando quieras:"
@@ -200,5 +265,13 @@ msg_info "Comandos útiles:"
 echo " • Ver estado: launchctl list | grep sibelius"
 echo " • Ejecutar manualmente: $RESET_SCRIPT"
 echo " • Ver logs: tail -f $REAL_HOME/.local/sibelius_reset.log"
+echo " • Forzar reset inmediato: rm ~/.local/.sibelius_last_run && $RESET_SCRIPT"
 echo
 msg_warning "NOTA: El próximo reset automático será en 29 días desde ahora."
+
+# Auto-borrar este script instalador (ya no se necesita)
+SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+if [[ -f "$SCRIPT_PATH" ]]; then
+    rm -f "$SCRIPT_PATH"
+    msg_info "Script instalador eliminado (ya no se necesita)."
+fi
