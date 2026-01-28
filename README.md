@@ -2,6 +2,10 @@
 
 Automatiza el reset de Sibelius Ultimate en macOS cada 29 días.
 
+☕️ **¿Sale cafecito?** [cafecito.app/chugeno](https://cafecito.app/chugeno)
+
+📺 **Instrucciones en video:** [youtube.com/watch?v=yoEpCc1OVRA](https://youtu.be/yoEpCc1OVRA)
+
 ## Instalación
 
 1. **Abre la Terminal** (puedes buscarla en Spotlight con `Cmd + Espacio`)
