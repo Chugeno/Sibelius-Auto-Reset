@@ -64,7 +64,7 @@ chown "$REAL_USER:staff" "$SCRIPTS_DIR"
 
 # 2. Crear script auxiliar para borrado (evita problemas de sudoers con espacios)
 HELPER_SCRIPT="$SCRIPTS_DIR/sibelius_clean.sh"
-cat > "$HELPER_SCRIPT" << 'EOF'
+cat > "$HELPER_SCRIPT" << EOF
 #!/bin/bash
 # Script auxiliar de limpieza - ejecutado con sudo
 # NO MODIFICAR - Generado automáticamente
@@ -72,7 +72,7 @@ cat > "$HELPER_SCRIPT" << 'EOF'
 rm -Rf /Applications/APi1 2>/dev/null
 rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/ACr2" 2>/dev/null
 rm -Rf "/Library/Application Support/Avid/Sibelius/_manuscript/Plugins_v2" 2>/dev/null
-rm -Rf "$HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3" 2>/dev/null
+rm -Rf "$REAL_HOME/Library/Application Support/Avid/Sibelius/_manuscript/HEa3" 2>/dev/null
 
 # Verificar que al menos uno existía y fue borrado
 CLEANED=0
