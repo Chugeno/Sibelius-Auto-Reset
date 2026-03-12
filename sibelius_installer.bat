@@ -176,7 +176,13 @@ echo.
 set /p RUN_NOW="^¿Ejecutar el reset de Sibelius ahora? (s/n): "
 if /i "%RUN_NOW%"=="s" (
     echo [INFO] Ejecutando reset...
+    echo.
     call "%RESET_SCRIPT%"
+    echo.
+    echo [INFO] Reset finalizado. Revisa el resultado arriba.
+    echo [INFO] Log completo en: %LOG_DIR%\sibelius_reset.log
+    echo.
+    pause
 ) else (
     echo [INFO] Podes ejecutarlo manualmente cuando quieras:
     echo   %RESET_SCRIPT%
