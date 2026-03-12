@@ -55,13 +55,9 @@ powershell -NoProfile -Command ^
     "  $ps1 = '%RESET_PS1%';" ^
     "  $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NonInteractive -ExecutionPolicy Bypass -File \"' + $ps1 + '\"');" ^
     "  $trigger = New-ScheduledTaskTrigger -Daily -At '03:00AM';" ^
-    "  $settings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable:$false -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1);" ^
+    "  $settings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable:$false -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries;" ^
     "  $principal = New-ScheduledTaskPrincipal -UserId ($env:USERDOMAIN + '\' + $env:USERNAME) -RunLevel Limited;" ^
     "  Register-ScheduledTask -TaskName '%TASK_NAME%' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null;" ^
-    "  $t = Get-ScheduledTask -TaskName '%TASK_NAME%';" ^
-    "  $t.Settings.DisallowStartIfOnBatteries = $false;" ^
-    "  $t.Settings.StopIfGoingOnBatteries = $false;" ^
-    "  Set-ScheduledTask -InputObject $t -ErrorAction SilentlyContinue | Out-Null;" ^
     "  Write-Host ('[SUCCESS] Tarea registrada para usuario: ' + $env:USERNAME);" ^
     "  exit 0" ^
     "} catch {" ^
