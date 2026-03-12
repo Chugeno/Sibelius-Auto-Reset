@@ -133,7 +133,8 @@ if /i "%RUN_NOW%"=="s" (
     echo [INFO] Proceso terminado.
     echo [INFO] Log: %LOG_FILE%
     echo.
-    pause
+    echo Presiona Ctrl+C o espera 15 segundos para cerrar...
+    timeout /t 15 /nobreak >nul
 ) else (
     echo [INFO] Podes ejecutarlo manualmente:
     echo   "%RESET_SCRIPT%"
@@ -147,5 +148,6 @@ echo   * Ver log:        type "%LOG_FILE%"
 echo   * Forzar reset:   del "%TIMESTAMP_FILE%" ^&^& "%RESET_SCRIPT%"
 echo.
 
-pause
+echo Presiona Ctrl+C o espera 30 segundos para cerrar...
+timeout /t 30 /nobreak >nul
 endlocal

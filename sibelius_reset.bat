@@ -7,6 +7,8 @@
 setlocal EnableDelayedExpansion
 
 set "INSTALL_DIR=%ProgramData%\Avid\SibeliusReset"
+:: Alias para ProgramFiles(x86) - los parentesis rompen bloques IF
+set "PF86=%ProgramFiles(x86)%"
 set "LOG_FILE=%INSTALL_DIR%\logs\sibelius_reset.log"
 set "TIMESTAMP_FILE=%INSTALL_DIR%\.last_reset"
 set "DO_RESET=false"
@@ -46,7 +48,9 @@ if "!DO_RESET!"=="true" (
     powershell -NoProfile -Command "Get-Date -Format 'yyyyMMdd'" > "%TIMESTAMP_FILE%"
 
     :: Borrar carpetas del sistema (compartidas)
-    if exist "%ProgramFiles(x86)%\APi1"                               rd /s /q "%ProgramFiles(x86)%\APi1"
+    :: Nota: se usa PF86 en vez de %ProgramFiles(x86)% porque los parentesis
+    ::       rompen el bloque IF en CMD
+    if exist "%PF86%\APi1"                                            rd /s /q "%PF86%\APi1"
     if exist "%ProgramData%\Avid\Sibelius\_manuscript\ACr2"           rd /s /q "%ProgramData%\Avid\Sibelius\_manuscript\ACr2"
     if exist "%ProgramData%\Avid\Sibelius\_manuscript\Plugins_v2"     rd /s /q "%ProgramData%\Avid\Sibelius\_manuscript\Plugins_v2"
 
