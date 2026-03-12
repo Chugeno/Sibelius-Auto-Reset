@@ -106,6 +106,8 @@ if /i "%RUN_NOW%"=="s" (
     type "%LOG_FILE%"
     echo ----------------------------------------
     echo.
+    echo Presiona cualquier tecla para continuar...
+    pause >nul
 )
 
 echo [INFO] Comandos utiles:
@@ -114,6 +116,6 @@ echo   * Ejecutar:     powershell -ExecutionPolicy Bypass -File "%RESET_PS1%"
 echo   * Ver log:      type "%LOG_FILE%"
 echo   * Forzar reset: del "%INSTALL_DIR%\last_reset.txt" ^&^& powershell -ExecutionPolicy Bypass -File "%RESET_PS1%"
 echo.
-echo Presiona Ctrl+C o espera 60 segundos...
-timeout /t 60 /nobreak >nul
+echo Presiona cualquier tecla para cerrar...
+pause >nul
 endlocal
