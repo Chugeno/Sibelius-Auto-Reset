@@ -2,152 +2,118 @@
 :: ============================================================
 :: Instalador - Reset automatico de Sibelius Ultimate (29 dias)
 :: Debe ejecutarse con permisos de Administrador
-:: Version 1.2 - Instalador simplificado (copia script separado)
+:: Version 2.0 - Reset en PowerShell (sin limitaciones de CMD)
 :: ============================================================
 setlocal EnableDelayedExpansion
 
-:: Verificar si se ejecuta como Administrador
 net session >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] Este script debe ejecutarse como Administrador.
-    echo Clic derecho sobre el archivo ^> "Ejecutar como administrador".
-    pause
+    echo [ERROR] Ejecutar como Administrador (clic derecho ^> Ejecutar como administrador^)
+    timeout /t 10 /nobreak >nul
     exit /b 1
 )
 
-:: Verificar que Sibelius esta instalado
 if not exist "%ProgramFiles%\Avid\Sibelius" (
     if not exist "%ProgramFiles(x86)%\Avid\Sibelius" (
         echo [WARNING] Sibelius no encontrado en Program Files.
         set /p CONTINUE="^¿Continuar de todos modos? (s/n): "
         if /i "!CONTINUE!" neq "s" (
-            echo [INFO] Instalacion cancelada.
+            echo [INFO] Cancelado.
             exit /b 0
         )
     )
 )
 
 echo.
-echo [INFO] Configurando reset automatico de Sibelius Ultimate...
+echo [INFO] Instalando reset automatico de Sibelius Ultimate v2.0...
 echo.
 
-:: --- Paths ---
 set "INSTALL_DIR=%ProgramData%\Avid\SibeliusReset"
-set "RESET_SCRIPT=%INSTALL_DIR%\sibelius_reset.bat"
+set "RESET_PS1=%INSTALL_DIR%\sibelius_reset.ps1"
 set "UNINSTALL_SCRIPT=%INSTALL_DIR%\sibelius_uninstall.bat"
 set "LOG_FILE=%INSTALL_DIR%\logs\sibelius_reset.log"
-set "TIMESTAMP_FILE=%INSTALL_DIR%\.last_reset"
 set "TASK_NAME=SibeliusAutoReset"
-
-:: Obtener el directorio donde esta este instalador
 set "SCRIPT_DIR=%~dp0"
 
-:: Verificar que sibelius_reset.bat existe junto al instalador
-if not exist "%SCRIPT_DIR%sibelius_reset.bat" (
-    echo [ERROR] No se encontro sibelius_reset.bat en la misma carpeta que este instalador.
-    echo Asegurate de que ambos archivos esten juntos.
-    pause
+if not exist "%SCRIPT_DIR%sibelius_reset.ps1" (
+    echo [ERROR] No se encontro sibelius_reset.ps1 en la misma carpeta que este instalador.
+    timeout /t 15 /nobreak >nul
     exit /b 1
 )
 
-:: Crear directorios
 mkdir "%INSTALL_DIR%\logs" 2>nul
-echo [SUCCESS] Directorio de instalacion: %INSTALL_DIR%
+echo [SUCCESS] Directorio: %INSTALL_DIR%
 
-:: Copiar el script de reset al directorio de instalacion
-copy /y "%SCRIPT_DIR%sibelius_reset.bat" "%RESET_SCRIPT%" >nul
-if %ERRORLEVEL% neq 0 (
-    echo [ERROR] No se pudo copiar sibelius_reset.bat a %RESET_SCRIPT%
-    pause
-    exit /b 1
-)
-echo [SUCCESS] Script de reset instalado en: %RESET_SCRIPT%
+copy /y "%SCRIPT_DIR%sibelius_reset.ps1" "%RESET_PS1%" >nul
+echo [SUCCESS] Script de reset instalado: %RESET_PS1%
 
-:: ============================================================
-:: Registrar tarea en Task Scheduler
-:: ============================================================
+:: Registrar tarea (ejecuta powershell con el .ps1)
 schtasks /delete /tn "%TASK_NAME%" /f >nul 2>&1
 
 powershell -NoProfile -Command ^
     "try {" ^
-    "  $action   = New-ScheduledTaskAction -Execute '%RESET_SCRIPT%';" ^
-    "  $trigger  = New-ScheduledTaskTrigger -Daily -At '03:00AM';" ^
+    "  $ps1 = '%RESET_PS1%';" ^
+    "  $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NonInteractive -ExecutionPolicy Bypass -File \"' + $ps1 + '\"');" ^
+    "  $trigger = New-ScheduledTaskTrigger -Daily -At '03:00AM';" ^
     "  $settings = New-ScheduledTaskSettingsSet -RunOnlyIfNetworkAvailable:$false -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1);" ^
     "  $principal = New-ScheduledTaskPrincipal -UserId ($env:USERDOMAIN + '\' + $env:USERNAME) -RunLevel Limited;" ^
     "  Register-ScheduledTask -TaskName '%TASK_NAME%' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null;" ^
     "  Write-Host ('[SUCCESS] Tarea registrada para usuario: ' + $env:USERNAME);" ^
     "  exit 0" ^
     "} catch {" ^
-    "  Write-Host ('[ERROR] Fallo al registrar la tarea: ' + $_.Exception.Message);" ^
+    "  Write-Host ('[ERROR] Fallo: ' + $_.Exception.Message);" ^
     "  exit 1" ^
     "}"
 
 if %ERRORLEVEL% neq 0 (
-    echo [ERROR] No se pudo registrar la tarea en el Programador de tareas.
-    pause
+    echo [ERROR] No se pudo registrar la tarea.
+    timeout /t 15 /nobreak >nul
     exit /b 1
 )
 
-:: ============================================================
-:: Crear script de desinstalacion
-:: ============================================================
+:: Script de desinstalacion
 (
 echo @echo off
 echo net session ^>nul 2^>^&1
-echo if %%ERRORLEVEL%% neq 0 ^(
-echo     echo [ERROR] Ejecutar como Administrador.
-echo     pause
-echo     exit /b 1
-echo ^)
-echo echo Desinstalando reset automatico de Sibelius...
+echo if %%ERRORLEVEL%% neq 0 ^( echo [ERROR] Ejecutar como Administrador. ^& pause ^& exit /b 1 ^)
 echo schtasks /delete /tn %TASK_NAME% /f
 echo rd /s /q "%INSTALL_DIR%"
-echo echo [SUCCESS] Desinstalacion completada.
+echo echo [SUCCESS] Desinstalado.
 echo pause
 ) > "%UNINSTALL_SCRIPT%"
-echo [SUCCESS] Script de desinstalacion: %UNINSTALL_SCRIPT%
+echo [SUCCESS] Desinstalador: %UNINSTALL_SCRIPT%
 
-:: ============================================================
-:: Resumen
-:: ============================================================
 echo.
 echo ============================================================
-echo   INSTALACION COMPLETADA v1.2
+echo   INSTALACION COMPLETADA v2.0
 echo ============================================================
 echo.
 echo   * Reset cada 29 dias (chequeo diario a las 3:00 AM)
-echo   * Se ejecuta al encender la PC si estuvo apagada mas de 29 dias
-echo   * Script: %RESET_SCRIPT%
+echo   * Corre al encender si la PC estuvo apagada ^>29 dias
+echo   * Script: %RESET_PS1%
 echo   * Log: %LOG_FILE%
 echo   * Desinstalar: %UNINSTALL_SCRIPT%
 echo.
 
-:: Ofrecer ejecutar el reset ahora
-set /p RUN_NOW="^¿Ejecutar el reset de Sibelius ahora? (s/n): "
+set /p RUN_NOW="^¿Ejecutar el reset ahora? (s/n): "
 if /i "%RUN_NOW%"=="s" (
     echo.
-    echo [INFO] Ejecutando reset...
+    echo [INFO] Ejecutando...
+    powershell -NonInteractive -ExecutionPolicy Bypass -File "%RESET_PS1%"
     echo.
-    call "%RESET_SCRIPT%"
+    echo [INFO] Contenido del log:
+    echo ----------------------------------------
+    type "%LOG_FILE%"
+    echo ----------------------------------------
     echo.
-    echo [INFO] Proceso terminado.
-    echo [INFO] Log: %LOG_FILE%
-    echo.
-    echo Presiona Ctrl+C o espera 15 segundos para cerrar...
-    timeout /t 15 /nobreak >nul
-) else (
-    echo [INFO] Podes ejecutarlo manualmente:
-    echo   "%RESET_SCRIPT%"
 )
 
-echo.
 echo [INFO] Comandos utiles:
-echo   * Ver tarea:      schtasks /query /tn %TASK_NAME% /v
-echo   * Ejecutar reset: "%RESET_SCRIPT%"
-echo   * Ver log:        type "%LOG_FILE%"
-echo   * Forzar reset:   del "%TIMESTAMP_FILE%" ^&^& "%RESET_SCRIPT%"
+echo   * Ver tarea:    schtasks /query /tn %TASK_NAME% /v
+echo   * Ejecutar:     powershell -ExecutionPolicy Bypass -File "%RESET_PS1%"
+echo   * Ver log:      type "%LOG_FILE%"
+echo   * Forzar reset: del "%INSTALL_DIR%\last_reset.txt" ^&^& powershell -ExecutionPolicy Bypass -File "%RESET_PS1%"
 echo.
-
-echo Presiona Ctrl+C o espera 30 segundos para cerrar...
-timeout /t 30 /nobreak >nul
+echo Presiona Ctrl+C o espera 60 segundos...
+timeout /t 60 /nobreak >nul
 endlocal
