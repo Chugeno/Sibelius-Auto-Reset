@@ -18,6 +18,9 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
+# Desbloquear ejecución de scripts para el proceso actual
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "     Sibelius Ultimate Auto-Reset - Instalador Windows      " -ForegroundColor Cyan
@@ -151,7 +154,7 @@ try {
 
 # --- 6. Ejecutar Reset Inicial Inmediato ---
 Write-Host "[5/5] Ejecutando reseteo inicial de Sibelius..." -ForegroundColor Yellow
-& "$resetPs1" -Force
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$resetPs1" -Force
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Green
