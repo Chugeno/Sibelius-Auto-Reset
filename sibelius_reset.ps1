@@ -92,7 +92,7 @@ foreach ($p in $systemPaths) {
             Remove-Item -Path $p -Recurse -Force -ErrorAction Stop
             Write-Log "Borrado archivo/directorio de sistema: $p"
         } catch {
-            Write-Log "Advertencia al borrar $p: $_"
+            Write-Log "Advertencia al borrar ${p}: $_"
         }
     }
 }
@@ -107,7 +107,7 @@ foreach ($userDir in $userProfiles) {
             Remove-Item -Path $userPath -Recurse -Force -ErrorAction Stop
             Write-Log "Borrado rastro de usuario en: $userPath"
         } catch {
-            Write-Log "Advertencia al borrar $userPath: $_"
+            Write-Log "Advertencia al borrar ${userPath}: $_"
         }
     }
 }
@@ -137,7 +137,7 @@ try {
             New-Item -Path $regPathSid -Force -ErrorAction SilentlyContinue | Out-Null
         }
         Set-ItemProperty -Path $regPathSid -Name "TrialDialogSavedChoice" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
-        Write-Log "Registro actualizado para SID $sid: TrialDialogSavedChoice = 3"
+        Write-Log "Registro actualizado para SID ${sid}: TrialDialogSavedChoice = 3"
     }
 } catch {
     Write-Log "Advertencia al actualizar ramas en HKEY_USERS: $_"
