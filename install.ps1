@@ -46,22 +46,36 @@ Write-Host "[OK] Directorio preparado: $installDir" -ForegroundColor Green
 # --- 3. Instalar o copiar sibelius_reset.ps1 ---
 Write-Host "[2/5] Instalando script de reseteo..." -ForegroundColor Yellow
 
-# Verificar si se esta ejecutando desde un clon local con el archivo presente
-$localScript = Join-Path $PSScriptRoot "sibelius_reset.ps1"
-if (Test-Path $localScript) {
-    Copy-Item -Path $localScript -Destination $resetPs1 -Force
-    Write-Host "[OK] Script copiado desde directorio local" -ForegroundColor Green
-} else {
+$scriptInstalled = $false
+
+# Verificar si se esta ejecutando desde un archivo local (.ps1 en disco)
+if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
+    $localScript = Join-Path $PSScriptRoot "sibelius_reset.ps1"
+    if (Test-Path -Path $localScript) {
+        Copy-Item -Path $localScript -Destination $resetPs1 -Force
+        Write-Host "[OK] Script copiado desde directorio local" -ForegroundColor Green
+        $scriptInstalled = $true
+    }
+}
+
+if (-not $scriptInstalled) {
     # Descargar desde GitHub
     try {
         Invoke-WebRequest "$rawBaseUrl/sibelius_reset.ps1" -OutFile $resetPs1 -UseBasicParsing -ErrorAction Stop
         Write-Host "[OK] Script descargado desde GitHub" -ForegroundColor Green
+        $scriptInstalled = $true
     } catch {
         Write-Host "[ERROR] No se pudo descargar sibelius_reset.ps1: $_" -ForegroundColor Red
         Write-Host "Verifica tu conexion a internet e intenta nuevamente." -ForegroundColor Yellow
         Read-Host "Presiona Enter para salir..."
         exit 1
     }
+}
+
+if (-not (Test-Path -Path $resetPs1)) {
+    Write-Host "[ERROR] No se encontro el archivo instalado en: $resetPs1" -ForegroundColor Red
+    Read-Host "Presiona Enter para salir..."
+    exit 1
 }
 
 # --- 4. Generar Scripts de Desinstalacion ---
